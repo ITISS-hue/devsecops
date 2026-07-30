@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: app-container
-        image: DOCKERHUB_USERNAME/my-sonar-project:latest
+        image: DOCKERHUB_USERNAME/devsecops:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 80
