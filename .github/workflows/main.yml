@@ -73,11 +73,11 @@ jobs:
     steps:
       - name: Checkout Deployment Manifests
         uses: actions/checkout@v4
-
+      
       - name: Set up Kubeconfig Authorization Gateway
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 --decode > ~/.kube/config
+          echo "${{ secrets.KUBECONFIG_DATA }}" > ~/.kube/config
           chmod 600 ~/.kube/config
 
       - name: Inject Configuration Variables & Apply Manifests
