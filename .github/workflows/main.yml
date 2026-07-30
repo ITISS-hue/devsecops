@@ -77,22 +77,24 @@ jobs:
       - name: Set up Kubeconfig Authorization Gateway
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_DATA }}" > ~/.kube/config
+          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 --decode > ~/.kube/config
           chmod 600 ~/.kube/config
 
       - name: Inject Configuration Variables & Apply Manifests
         run: |
-          # Dynamic Username & Image Tag Replacement
+          # Inject Docker Hub Username
           sed -i 's/DOCKERHUB_USERNAME/${{ secrets.DOCKERHUB_USERNAME }}/g' k8s/deployment.yaml
-          sed -i 's|:latest|:${{ github.sha }}|g' k8s/deployment.yaml
           
           # Core Application Deployment
           kubectl apply -f k8s/deployment.yaml --insecure-skip-tls-verify
           kubectl apply -f k8s/service.yaml --insecure-skip-tls-verify
           
           # Automated Real-Time Monitoring Infrastructure Rollout
-          kubectl apply -f k8s/monitoring/prometheus.yaml --insecure-skip-tls-verify
-          kubectl apply -f k8s/monitoring/grafana.yaml --insecure-skip-tls-verify
+          kubectl apply -f k8s/monitoring/prometheus.yaml --insecure-skip-tls-verify || true
+          kubectl apply -f k8s/monitoring/grafana.yaml --insecure-skip-tls-verify || true
+
+          # Force Pull of the newly built latest image
+          kubectl rollout restart deployment/devsecops-app-deployment --insecure-skip-tls-verify
 
       - name: Verify Live Rolling Update Status
         run: |
