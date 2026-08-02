@@ -6,12 +6,11 @@ metadata:
     app: devsecops-app
 spec:
   replicas: 2
-  # Smooth rolling updates between 2 replicas
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
-      maxUnavailable: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: devsecops-app
@@ -24,11 +23,10 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "8000"
     spec:
-      # Fixes the hanging pod/timeout issue during pipeline execution (Forces old pod deletion in 5s)
       terminationGracePeriodSeconds: 5
       containers:
       - name: app-container
-        image: avigyan2212/devsecops:latest
+        image: DOCKERHUB_USERNAME/devsecops:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -40,11 +38,10 @@ spec:
           runAsUser: 10001
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: false
-        # Resource quotas for cluster stability
         resources:
           limits:
             cpu: "500m"
             memory: "512Mi"
           requests:
-            cpu: "250m"
-            memory: "256Mi"
+            cpu: "100m"
+            memory: "128Mi"
