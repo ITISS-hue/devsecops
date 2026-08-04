@@ -47,7 +47,7 @@ jobs:
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/devsecops:${{ github.sha }} ${{ secrets.DOCKERHUB_USERNAME }}/devsecops:latest
 
       - name: Run Aqua Security Trivy (Vulnerability Assessment)
-        uses: aquasecurity/trivy-action@v0.29.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/devsecops:${{ github.sha }}'
           format: 'table'
