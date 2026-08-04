@@ -6,10 +6,10 @@ WORKDIR /app
 RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt
 
 # Copy requirements.in (loose versions)
-COPY requirements.in .
+COPY requirements.txt .
 
 # Generate hash-locked requirements automatically during build
-RUN pip-compile --generate-hashes requirements.in -o requirements.txt
+RUN pip-compile --generate-hashes requirements.txt -o requirements.txt
 
 
 # Stage 2: Final runtime image
