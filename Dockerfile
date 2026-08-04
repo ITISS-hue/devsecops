@@ -26,7 +26,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy app source code and set permissions
-COPY --chown=appuser:appgroup . .
+COPY --chown=appuser:appgroup app.py .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
