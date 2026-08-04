@@ -3,7 +3,7 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt gunicorn==22.0.0
+RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt
 
 # Copy requirements.in (loose versions)
 COPY requirements.in .
