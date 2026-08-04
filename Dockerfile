@@ -1,4 +1,3 @@
-#comment
 FROM python:3.12-alpine
 
 WORKDIR /app
@@ -11,7 +10,9 @@ RUN addgroup -g 10001 appuser && \
     chown -R appuser:appuser /app /tmp/.gunicorn
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+
+# Harden pip installation against setup-script vulnerabilities and unpinned package risks
+RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt gunicorn==22.0.0
 
 COPY --chown=appuser:appuser app.py ./
 
