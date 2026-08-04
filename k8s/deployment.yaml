@@ -22,7 +22,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: devsecops-app
-        image: DOCKERHUB_USERNAME/devsecops:v1.0.0
+        image: DOCKERHUB_USERNAME/devsecops:latest
         ports:
         - containerPort: 8000
         resources:
@@ -34,17 +34,3 @@ spec:
             cpu: "250m"
             memory: "256Mi"
             ephemeral-storage: "1Gi"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: devsecops-service
-  namespace: default
-spec:
-  type: NodePort
-  selector:
-    app: devsecops-app
-  ports:
-    - port: 8000
-      targetPort: 8000
-      nodePort: 30080
