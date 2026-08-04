@@ -32,7 +32,7 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=2),
 )
 
-# Enable global CSRF Protection for Flask forms (Fixes SonarCloud CSRF issue)
+# Enable global CSRF Protection for Flask forms
 csrf = CSRFProtect(app)
 
 DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.db")
@@ -312,4 +312,8 @@ def logout():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    # Local development fallback: 127.0.0.1
+    # Production / Docker / Kubernetes environment variable: HOST="0.0.0.0"
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host=host, port=port)
