@@ -90,6 +90,7 @@ jobs:
           sed -i 's/DOCKERHUB_USERNAME/${{ secrets.DOCKERHUB_USERNAME }}/g' k8s/deployment.yaml
 
           # Core Application Deployment
+          kubectl delete svc devsecops-service --ignore-not-found=true
           kubectl apply -f k8s/deployment.yaml --insecure-skip-tls-verify
           kubectl apply -f k8s/service.yaml --insecure-skip-tls-verify
 
