@@ -83,38 +83,33 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG_DATA }}" > ~/.kube/config
           chmod 600 ~/.kube/config
-          
-          # Fix TLS Certificate verification error for public IP
+
+          # Bypass TLS Certificate validation issues for public API server IP
           kubectl config unset clusters.default.certificate-authority-data || true
           kubectl config set-cluster default --insecure-skip-tls-verify=true || true
 
       - name: Inject Configuration Variables & Apply Manifests
         run: |
-          # Inject Docker Hub Username into application deployment
+          # Inject Docker Hub Username into application deployment manifest
           sed -i 's/DOCKERHUB_USERNAME/${{ secrets.DOCKERHUB_USERNAME }}/g' k8s/deployment.yaml
 
-          # Clean existing service to avoid NodePort port allocation clash
-          kubectl delete svc devsecops-service --ignore-not-found=true --insecure-skip-tls-verify
-
-          # Core Application Deployment
+          # Apply Core Application Deployment and Service
           kubectl apply -f k8s/deployment.yaml --insecure-skip-tls-verify
-          if [ -f k8s/service.yaml ]; then
-            kubectl apply -f k8s/service.yaml --insecure-skip-tls-verify
-          fi
+          kubectl apply -f k8s/service.yaml --insecure-skip-tls-verify
 
-          # Automated Real-Time Monitoring Infrastructure Rollout
+          # Apply Automated Real-Time Monitoring Infrastructure
           if [ -d monitoring ]; then
             kubectl apply -f monitoring/prometheus.yaml --insecure-skip-tls-verify || true
             kubectl apply -f monitoring/grafana.yaml --insecure-skip-tls-verify || true
             kubectl apply -f monitoring/exporters.yaml --insecure-skip-tls-verify || true
           fi
 
-          # Force Pull of the newly built latest image
-          kubectl rollout restart deployment/devsecops-app-deployment --insecure-skip-tls-verify || true
+          # Force Rollout Restart to trigger new image download
+          kubectl rollout restart deployment/devsecops-deployment --insecure-skip-tls-verify || true
 
       - name: Verify Live Rolling Update Status
         run: |
-          kubectl rollout status deployment/devsecops-app-deployment --timeout=120s --insecure-skip-tls-verify || true
+          kubectl rollout status deployment/devsecops-deployment --timeout=120s --insecure-skip-tls-verify || true
 
   # ==========================================
   # STAGE 4: DYNAMIC APPLICATION SECURITY TESTING (DAST)
