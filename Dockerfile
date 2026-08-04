@@ -3,7 +3,7 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --only-binary :all: pip-tools
+RUN pip install --no-cache-dir --only-binary :all: pip-tools==7.4.1
 
 # Copy requirements.in (loose versions)
 COPY requirements.in .
