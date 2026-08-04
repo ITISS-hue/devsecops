@@ -1,24 +1,39 @@
-FROM python:3.12-alpine
+# Stage 1: Build stage for dependency resolution
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Create non-root appuser with explicit UID 10001 (matching k8s spec)
-# and create writable directories for SQLite and Gunicorn temporary files
-RUN addgroup -g 10001 appuser && \
-    adduser -u 10001 -G appuser -D -s /sbin/nologin appuser && \
-    mkdir -p /app /tmp/.gunicorn && \
-    chown -R appuser:appuser /app /tmp/.gunicorn
+RUN pip install --no-cache-dir pip-tools
 
-COPY requirements.txt ./
+# Copy requirements.in (loose versions)
+COPY requirements.in .
 
-# Harden pip installation against setup-script vulnerabilities and unpinned package risks
-RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt gunicorn==22.0.0
+# Generate hash-locked requirements automatically during build
+RUN pip-compile --generate-hashes requirements.in -o requirements.txt
 
-COPY --chown=appuser:appuser app.py ./
 
-USER 10001
+# Stage 2: Final runtime image
+FROM python:3.11-slim AS runner
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
+
+WORKDIR /app
+
+# Copy lockfile from builder stage
+COPY --from=builder /app/requirements.txt .
+
+# Enforce strict hash verification
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt gunicorn==22.0.0
+
+# Non-root user setup
+RUN addgroup --system appgroup && adduser --system --group appuser \
+    && chown -R appuser:appgroup /app
+
+COPY . .
+USER appuser
 
 EXPOSE 8000
 
-# Tell Gunicorn to use /tmp for its runtime sockets/files
-CMD ["gunicorn", "--worker-tmp-dir", "/tmp", "--bind", "0.0.0.0:8000", "--workers", "2", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "app:app"]

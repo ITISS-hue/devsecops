@@ -1,3 +1,12 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+type: Opaque
+stringData:
+  SECRET_KEY: "devsecops-production-fixed-secret-key-9988"
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,6 +32,8 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "8000"
     spec:
+      # SonarCloud Fix: Disable automatic token mounting
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 5
       containers:
       - name: app-container
@@ -32,7 +43,10 @@ spec:
         - containerPort: 8000
         env:
         - name: SECRET_KEY
-          value: "devsecops-production-fixed-secret-key-9988"
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: SECRET_KEY
         securityContext:
           runAsNonRoot: true
           runAsUser: 10001
