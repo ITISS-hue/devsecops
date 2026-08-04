@@ -1,78 +1,83 @@
 apiVersion: v1
-kind: ServiceAccount
+kind: Secret
 metadata:
-  name: kube-state-metrics
+  name: grafana-secret
   namespace: default
+type: Opaque
+stringData:
+  admin-password: "admin123"
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: kube-state-metrics
-rules:
-- apiGroups: [""]
-  resources: ["configmaps", "secrets", "nodes", "pods", "services", "namespaces", "persistentvolumeclaims"]
-  verbs: ["list", "watch"]
-- apiGroups: ["apps"]
-  resources: ["statefulsets", "deployments", "daemonsets", "replicasets"]
-  verbs: ["list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: kube-state-metrics
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: kube-state-metrics
-subjects:
-- kind: ServiceAccount
-  name: kube-state-metrics
+  name: grafana-datasources
   namespace: default
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: prometheus
+        type: prometheus
+        url: http://prometheus-service:9090
+        access: proxy
+        isDefault: true
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kube-state-metrics
+  name: grafana-deployment
   namespace: default
+  labels:
+    app: grafana
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kube-state-metrics
+      app: grafana
   template:
     metadata:
       labels:
-        app: kube-state-metrics
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
+        app: grafana
     spec:
-      serviceAccountName: kube-state-metrics
+      # Fix 1: Disable automatic token mounting for security compliance
+      automountServiceAccountToken: false
       containers:
-      - name: kube-state-metrics
-        image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.0
+      - name: grafana
+        image: grafana/grafana:10.4.0
         ports:
-        - containerPort: 8080
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: grafana-secret
+              key: admin-password
+        # Fix 2: Explicit CPU & Memory requests and limits
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        volumeMounts:
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+      volumes:
+      - name: datasources
+        configMap:
+          name: grafana-datasources
 ---
-apiVersion: apps/v1
-kind: DaemonSet
+apiVersion: v1
+kind: Service
 metadata:
-  name: node-exporter
+  name: grafana-service
   namespace: default
 spec:
+  type: NodePort
   selector:
-    matchLabels:
-      app: node-exporter
-  template:
-    metadata:
-      labels:
-        app: node-exporter
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9100"
-    spec:
-      containers:
-      - name: node-exporter
-        image: prom/node-exporter:latest
-        ports:
-        - containerPort: 9100
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 32000

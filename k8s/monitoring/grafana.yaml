@@ -1,7 +1,17 @@
 apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-secret
+  namespace: default
+type: Opaque
+stringData:
+  admin-password: "admin123"
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-datasources
+  namespace: default
 data:
   prometheus.yaml: |
     apiVersion: 1
@@ -16,6 +26,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana-deployment
+  namespace: default
+  labels:
+    app: grafana
 spec:
   replicas: 1
   selector:
@@ -26,14 +39,27 @@ spec:
       labels:
         app: grafana
     spec:
+      # Fix 1: Disable automatic token mounting for security compliance
+      automountServiceAccountToken: false
       containers:
       - name: grafana
-        image: grafana/grafana:latest
+        image: grafana/grafana:10.4.0
         ports:
         - containerPort: 3000
         env:
         - name: GF_SECURITY_ADMIN_PASSWORD
-          value: "admin123"
+          valueFrom:
+            secretKeyRef:
+              name: grafana-secret
+              key: admin-password
+        # Fix 2: Explicit CPU & Memory requests and limits
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
         volumeMounts:
         - name: datasources
           mountPath: /etc/grafana/provisioning/datasources
@@ -46,6 +72,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana-service
+  namespace: default
 spec:
   type: NodePort
   selector:
