@@ -24,10 +24,10 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: SonarQube Quality Gate Check
-        uses: SonarSource/sonarqube-quality-gate-action@master
+        uses: SonarSource/sonarqube-quality-gate-action@v1.1.0
         timeout-minutes: 5
         env:
-    	  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ==========================================
   # STAGE 2: SOFTWARE COMPOSITION ANALYSIS (SCA) & REGISTRY PUSH
@@ -49,7 +49,7 @@ jobs:
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/devsecops:${{ github.sha }} ${{ secrets.DOCKERHUB_USERNAME }}/devsecops:latest
 
       - name: Run Aqua Security Trivy (Vulnerability Assessment)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.29.0
         with:
           image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/devsecops:${{ github.sha }}'
           format: 'table'
@@ -79,7 +79,7 @@ jobs:
     steps:
       - name: Checkout Deployment Manifests
         uses: actions/checkout@v4
-      
+
       - name: Set up Kubeconfig Authorization Gateway
         run: |
           mkdir -p ~/.kube
@@ -90,11 +90,11 @@ jobs:
         run: |
           # Inject Docker Hub Username into application deployment
           sed -i 's/DOCKERHUB_USERNAME/${{ secrets.DOCKERHUB_USERNAME }}/g' k8s/deployment.yaml
-          
+
           # Core Application Deployment
           kubectl apply -f k8s/deployment.yaml --insecure-skip-tls-verify
           kubectl apply -f k8s/service.yaml --insecure-skip-tls-verify
-          
+
           # Automated Real-Time Monitoring Infrastructure Rollout
           kubectl apply -f monitoring/prometheus.yaml --insecure-skip-tls-verify || true
           kubectl apply -f monitoring/grafana.yaml --insecure-skip-tls-verify || true
