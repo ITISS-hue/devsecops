@@ -14,6 +14,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from prometheus_flask_exporter import PrometheusMetrics
 
 # --------------------------------------------------------------------------
+# Constants
+# --------------------------------------------------------------------------
+SIGN_UP_TEXT = "Sign Up"
+
+# --------------------------------------------------------------------------
 # App configuration
 # --------------------------------------------------------------------------
 app = Flask(__name__)
@@ -161,20 +166,20 @@ BASE_HTML = """
 </html>
 """
 
-SIGNUP_BODY = """
+SIGNUP_BODY = f"""
 <h1>Create an account</h1>
 <form method="post">
   <label>Username</label>
-  <input type="text" name="username" value="{{ username or '' }}" required>
+  <input type="text" name="username" value="{{{{ username or '' }}}}" required>
   <label>Email</label>
-  <input type="email" name="email" value="{{ email or '' }}" required>
+  <input type="email" name="email" value="{{{{ email or '' }}}}" required>
   <label>Password</label>
   <input type="password" name="password" required>
   <label>Confirm password</label>
   <input type="password" name="confirm" required>
-  <button type="submit">Sign Up</button>
+  <button type="submit">{SIGN_UP_TEXT}</button>
 </form>
-<p class="muted">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+<p class="muted">Already have an account? <a href="{{{{ url_for('login') }}}}">Log in</a></p>
 """
 
 LOGIN_BODY = """
@@ -230,7 +235,7 @@ def signup():
         error = validate_signup(username, email, password, confirm)
         if error:
             flash(error, "error")
-            return render(SIGNUP_BODY, "Sign Up", username=username, email=email)
+            return render(SIGNUP_BODY, SIGN_UP_TEXT, username=username, email=email)
 
         db = get_db()
         existing = db.execute(
@@ -238,7 +243,7 @@ def signup():
         ).fetchone()
         if existing:
             flash("Username or email is already taken.", "error")
-            return render(SIGNUP_BODY, "Sign Up", username=username, email=email)
+            return render(SIGNUP_BODY, SIGN_UP_TEXT, username=username, email=email)
 
         password_hash = generate_password_hash(password)
         db.execute(
@@ -250,7 +255,7 @@ def signup():
         flash("Account created successfully. Please log in.", "success")
         return redirect(url_for("login"))
 
-    return render(SIGNUP_BODY, "Sign Up")
+    return render(SIGNUP_BODY, SIGN_UP_TEXT)
 
 
 @app.route("/login", methods=["GET", "POST"])
