@@ -77,10 +77,13 @@ with app.app_context():
 
 
 # --------------------------------------------------------------------------
-# Validation helpers
+# Validation helpers (SonarCloud Compliant Regexes)
 # --------------------------------------------------------------------------
-USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,20}$")
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Fix: Used concise \w character class instead of [A-Za-z0-9_]
+USERNAME_RE = re.compile(r"^\w{3,20}$")
+
+# Fix: Simplified regex to remove backtracking risks
+EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
 
 def validate_signup(username, email, password, confirm):
@@ -221,7 +224,8 @@ def render(body_template, title, dash=False, **ctx):
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
-@app.route("/")
+# Fix: Added explicit HTTP method
+@app.route("/", methods=["GET"])
 def index():
     if session.get("user_id"):
         return redirect(url_for("dashboard"))
@@ -293,7 +297,8 @@ def login():
     return render(LOGIN_BODY, "Log In")
 
 
-@app.route("/dashboard")
+# Fix: Added explicit HTTP method
+@app.route("/dashboard", methods=["GET"])
 @login_required
 def dashboard():
     db = get_db()
@@ -312,8 +317,6 @@ def logout():
 
 
 if __name__ == "__main__":
-    # Local development fallback: 127.0.0.1
-    # Production / Docker / Kubernetes environment variable: HOST="0.0.0.0"
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", 8000))
     app.run(host=host, port=port)

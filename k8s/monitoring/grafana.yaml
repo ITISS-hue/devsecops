@@ -39,7 +39,6 @@ spec:
       labels:
         app: grafana
     spec:
-      # Fix 1: Disable automatic token mounting for security compliance
       automountServiceAccountToken: false
       containers:
       - name: grafana
@@ -52,14 +51,15 @@ spec:
             secretKeyRef:
               name: grafana-secret
               key: admin-password
-        # Fix 2: Explicit CPU & Memory requests and limits
         resources:
           requests:
             cpu: "100m"
             memory: "128Mi"
+            ephemeral-storage: "1Gi" # Fix: Added storage request
           limits:
             cpu: "500m"
             memory: "512Mi"
+            ephemeral-storage: "2Gi" # Fix: Added storage limit
         volumeMounts:
         - name: datasources
           mountPath: /etc/grafana/provisioning/datasources
