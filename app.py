@@ -10,6 +10,7 @@ import re
 from datetime import timedelta
 
 from flask import Flask, request, redirect, url_for, session, render_template_string, flash, g
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from prometheus_flask_exporter import PrometheusMetrics
 
@@ -30,6 +31,9 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",     # basic CSRF mitigation
     PERMANENT_SESSION_LIFETIME=timedelta(hours=2),
 )
+
+# Enable global CSRF Protection for Flask forms (Fixes SonarCloud CSRF issue)
+csrf = CSRFProtect(app)
 
 DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.db")
 
@@ -169,6 +173,7 @@ BASE_HTML = """
 SIGNUP_BODY = f"""
 <h1>Create an account</h1>
 <form method="post">
+  <input type="hidden" name="csrf_token" value="{{{{ csrf_token() }}}}"/>
   <label>Username</label>
   <input type="text" name="username" value="{{{{ username or '' }}}}" required>
   <label>Email</label>
@@ -185,6 +190,7 @@ SIGNUP_BODY = f"""
 LOGIN_BODY = """
 <h1>Welcome back</h1>
 <form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
   <label>Username or email</label>
   <input type="text" name="identifier" value="{{ identifier or '' }}" required>
   <label>Password</label>
@@ -201,6 +207,7 @@ DASHBOARD_BODY = """
 <p>Welcome, <strong>{{ username }}</strong>. You're logged in as <strong>{{ email }}</strong>.</p>
 <p class="muted">This page is only visible to authenticated users.</p>
 <form method="post" action="{{ url_for('logout') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
   <button class="logout-btn" type="submit">Log Out</button>
 </form>
 """
