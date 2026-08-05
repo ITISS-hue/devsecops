@@ -26,18 +26,22 @@ app = Flask(__name__)
 metrics = PrometheusMetrics(app) # Enables /metrics endpoint for Prometheus
 
 app.config.update(
-    # FIX: Static fallback string to prevent session reset on restarts
     SECRET_KEY=os.environ.get("SECRET_KEY", "devsecops-production-super-secret-key-12345"),
     SESSION_COOKIE_HTTPONLY=True,       # JS can't read the cookie
-    # FIX: Set SameSite to None for HTTP/NodePort IP testing to fix redirect loop
-    SESSION_COOKIE_SAMESITE=None,      
+    SESSION_COOKIE_SECURE=False,        # Essential for plain HTTP NodePort testing
+    SESSION_COOKIE_SAMESITE="Lax",      # Prevents cookie dropping across requests
+    SESSION_COOKIE_NAME="devsecops_session",
     PERMANENT_SESSION_LIFETIME=timedelta(hours=2),
 )
 
 # Enable global CSRF Protection for Flask forms
 csrf = CSRFProtect(app)
 
-DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.db")
+# Database path: Reads from K8s Volume Mount env variable DB_PATH if present, else fallback
+DATABASE = os.environ.get(
+    "DB_PATH", 
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.db")
+)
 
 
 # --------------------------------------------------------------------------
@@ -45,6 +49,11 @@ DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.db")
 # --------------------------------------------------------------------------
 def get_db():
     if "db" not in g:
+        # Ensure directory exists if DB_PATH contains subdirectories like /app/data/
+        db_dir = os.path.dirname(DATABASE)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            
         g.db = sqlite3.connect(DATABASE)
         g.db.row_factory = sqlite3.Row
     return g.db
@@ -58,6 +67,10 @@ def close_db(exception=None):
 
 
 def init_db():
+    db_dir = os.path.dirname(DATABASE)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
+
     db = sqlite3.connect(DATABASE)
     db.execute(
         """
@@ -73,7 +86,7 @@ def init_db():
     db.commit()
     db.close()
 
-# Ensure the database and tables are created automatically on app load
+# Ensure database structure is initialized on application load
 with app.app_context():
     init_db()
 
@@ -286,12 +299,11 @@ def login():
             flash("Invalid username/email or password.", "error")
             return render(LOGIN_BODY, "Log In", identifier=identifier)
 
-        # FIX: Setting up persistent sessions explicitly
         session.clear()
         session["user_id"] = user["id"]
         session["username"] = user["username"]
         session.permanent = True
-        session.modified = True  # Forces cookie creation in headers
+        session.modified = True
         return redirect(url_for("dashboard"))
 
     return render(LOGIN_BODY, "Log In")
