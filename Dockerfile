@@ -23,18 +23,23 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy app.py owned by root (default) and restrict write access
+# Copy app.py
 COPY app.py .
 RUN chmod 644 app.py
+
+# FIX 1: Create data directory for SQLite DB and grant full ownership to non-root user
+RUN mkdir -p /app/data && chown -R 10001:10001 /app
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PORT=8000 \
-    HOST=0.0.0.0
+    HOST=0.0.0.0 \
+    DB_PATH=/app/data/users.db
 
 # Switch to non-root user
 USER 10001:10001
 
 EXPOSE 8000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "app:app"]
+# FIX 2: Single worker with threads for smooth SQLite and Session handling
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "app:app"]
