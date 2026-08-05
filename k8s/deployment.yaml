@@ -34,7 +34,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: devsecops-app
-        image: DOCKERHUB_USERNAME/devsecops:latest
+        image: avigyan2212/devsecops:latest
         ports:
         - containerPort: 8000
         env:
