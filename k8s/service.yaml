@@ -5,6 +5,10 @@ metadata:
   namespace: default
 spec:
   type: NodePort
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
   selector:
     app: devsecops-app
   ports:
