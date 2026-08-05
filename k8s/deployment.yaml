@@ -32,6 +32,10 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 10001
+        runAsUser: 10001
+        runAsGroup: 10001
       containers:
       - name: devsecops-app
         image: avigyan2212/devsecops:latest
@@ -45,12 +49,12 @@ spec:
           mountPath: /app/data
         resources:
           requests:
-            cpu: "100m"
-            memory: "128Mi"
-            ephemeral-storage: "512Mi"
-          limits:
             cpu: "250m"
             memory: "256Mi"
+            ephemeral-storage: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
             ephemeral-storage: "1Gi"
       volumes:
       - name: sqlite-storage
