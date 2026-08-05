@@ -26,9 +26,11 @@ app = Flask(__name__)
 metrics = PrometheusMetrics(app) # Enables /metrics endpoint for Prometheus
 
 app.config.update(
-    SECRET_KEY=os.environ.get("SECRET_KEY", os.urandom(32)),
-    SESSION_COOKIE_HTTPONLY=True,      # JS can't read the cookie
-    SESSION_COOKIE_SAMESITE="Lax",     # basic CSRF mitigation
+    # FIX: Static fallback string to prevent session reset on restarts
+    SECRET_KEY=os.environ.get("SECRET_KEY", "devsecops-production-super-secret-key-12345"),
+    SESSION_COOKIE_HTTPONLY=True,       # JS can't read the cookie
+    # FIX: Set SameSite to None for HTTP/NodePort IP testing to fix redirect loop
+    SESSION_COOKIE_SAMESITE=None,      
     PERMANENT_SESSION_LIFETIME=timedelta(hours=2),
 )
 
@@ -79,10 +81,7 @@ with app.app_context():
 # --------------------------------------------------------------------------
 # Validation helpers (SonarCloud Compliant Regexes)
 # --------------------------------------------------------------------------
-# Fix: Used concise \w character class instead of [A-Za-z0-9_]
 USERNAME_RE = re.compile(r"^\w{3,20}$")
-
-# Fix: Simplified regex to remove backtracking risks
 EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
 
@@ -224,7 +223,6 @@ def render(body_template, title, dash=False, **ctx):
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
-# Fix: Added explicit HTTP method
 @app.route("/", methods=["GET"])
 def index():
     if session.get("user_id"):
@@ -288,16 +286,17 @@ def login():
             flash("Invalid username/email or password.", "error")
             return render(LOGIN_BODY, "Log In", identifier=identifier)
 
+        # FIX: Setting up persistent sessions explicitly
         session.clear()
-        session.permanent = True
         session["user_id"] = user["id"]
         session["username"] = user["username"]
+        session.permanent = True
+        session.modified = True  # Forces cookie creation in headers
         return redirect(url_for("dashboard"))
 
     return render(LOGIN_BODY, "Log In")
 
 
-# Fix: Added explicit HTTP method
 @app.route("/dashboard", methods=["GET"])
 @login_required
 def dashboard():
@@ -317,6 +316,6 @@ def logout():
 
 
 if __name__ == "__main__":
-    host = os.environ.get("HOST", "127.0.0.1")
+    host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", 8000))
     app.run(host=host, port=port)
