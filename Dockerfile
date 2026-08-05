@@ -1,45 +1,40 @@
-# Multi-stage build for DevSecOps security and minimal image size
-FROM python:3.11-slim AS builder
+# syntax=docker/dockerfile:1
+
+# ---- Build stage: install deps into a venv, keep build tools out of final image ----
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Upgrade pip
-RUN pip install --no-cache-dir --upgrade pip==24.0
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip==24.2 \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Final Runtime Stage
-FROM python:3.11-slim
+# ---- Final stage: minimal runtime image ----
+FROM python:3.12-slim
 
-# Create non-root user for execution
-RUN groupadd -g 10001 appgroup && \
-    useradd -u 10001 -g appgroup -s /bin/sh appuser
+# Create a non-root user/group to run the app
+RUN groupadd --gid 1001 appgroup \
+    && useradd --uid 1001 --gid appgroup --shell /usr/sbin/nologin --create-home appuser
+
+# Bring in only the installed virtual environment, not build tooling
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
+COPY --chown=appuser:appgroup app.py .
 
-# Copy installed site-packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+USER appuser
 
-# Copy app.py
-COPY app.py .
-RUN chmod 644 app.py
+EXPOSE 8080
 
-# FIX 1: Create data directory for SQLite DB and grant full ownership to non-root user
-RUN mkdir -p /app/data && chown -R 10001:10001 /app
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).status == 200 else sys.exit(1)"
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PORT=8000 \
-    HOST=0.0.0.0 \
-    DB_PATH=/app/data/users.db
-
-# Switch to non-root user
-USER 10001:10001
-
-EXPOSE 8000
-
-# FIX 2: Single worker with threads for smooth SQLite and Session handling
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "app:app"]
+# gunicorn binds 0.0.0.0 intentionally here — this is the container's own
+# network namespace, which is the correct/expected binding for a containerized service.
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "30", "app:app"]
