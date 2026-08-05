@@ -51,7 +51,7 @@ jobs:
         with:
           image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/devsecops:${{ github.sha }}'
           format: 'template'
-          template: '@contrib/html.tpl'
+          template: 'https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl'
           output: 'trivy-report.html'
           exit-code: '0'
           ignore-unfixed: true
